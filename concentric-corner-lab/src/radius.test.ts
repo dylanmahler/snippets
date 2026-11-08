@@ -150,16 +150,13 @@ describe("corner arc", () => {
 describe("contrast", () => {
   it("keeps text pairs at WCAG AA", () => {
     const pairs: Array<[string, string, number]> = [
-      ["#1c1714", "#fffcf8", 4.5],
-      ["#1c1714", "#f3eadf", 4.5],
-      ["#3d362f", "#e7e1d7", 4.5],
-      ["#514840", "#fffcf8", 4.5],
-      ["#3d362f", "#fffcf8", 4.5],
-      ["#f4faf7", "#0f5e4a", 4.5],
-      ["#f4faf7", "#146b54", 4.5],
-      ["#f4faf7", "#0c4d3c", 4.5],
-      ["#514840", "#e6ded3", 4.5],
-      ["#0f5e4a", "#fffcf8", 3],
+      ["#1d1d1f", "#ffffff", 4.5],
+      ["#1d1d1f", "#f5f5f7", 4.5],
+      ["#3a3a3c", "#ffffff", 4.5],
+      ["#3a3a3c", "#f5f5f7", 4.5],
+      ["#4e4e52", "#f5f5f7", 4.5],
+      ["#f5f5f7", "#1d1d1f", 4.5],
+      ["#54545a", "#ececef", 4.5],
     ]
     for (const [fg, bg, min] of pairs) {
       const ratio = contrast(fg, bg)

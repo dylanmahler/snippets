@@ -35,6 +35,12 @@ npm run dev
 
 Open the printed local URL. `npm run build` typechecks and writes `dist/`.
 
+## Layers
+
+The first view is the card and a quiet line. Drag the corner for radius, or the inner edge for padding. Handles fade in on hover, and on a tap when there is no hover.
+
+Adjust opens the numeric controls. Geometry, one level deeper, holds the formula, the guides, and naive mode. Hold G, or press and hold the card, to see the arcs without pinning them.
+
 ## Preview
 
 Branch previews are the Vercel deployment for this pull request. The URL is posted on the PR when the build finishes.

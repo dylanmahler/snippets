@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react"
-import { useSpring, type MotionValue } from "motion/react"
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react"
+import { motion, useSpring, type MotionValue } from "motion/react"
 import {
   BUTTON_HEIGHT,
   LIMITS,
@@ -14,6 +14,7 @@ import {
 } from "./radius"
 
 const SPRING = { stiffness: 320, damping: 28, mass: 0.7 }
+const REVEAL = { type: "spring" as const, stiffness: 420, damping: 36, mass: 0.65 }
 
 type Depth = 2 | 3
 type DragKind = "outer" | "padding" | "border"
@@ -43,11 +44,11 @@ const INITIAL: LabState = {
   depth: 3,
   focusOffset: 3,
   focusWidth: 2,
-  showGuides: true,
+  showGuides: false,
   naive: false,
 }
 
-const FALLBACK_BOX: Box = { w: 520, h: 268, buttonW: 140, buttonH: BUTTON_HEIGHT }
+const FALLBACK_BOX: Box = { w: 440, h: 252, buttonW: 128, buttonH: BUTTON_HEIGHT }
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(() =>
@@ -62,15 +63,15 @@ function usePrefersReducedMotion() {
   return reduced
 }
 
-function toInput(state: LabState, box: Box, mix?: { naive: number; depth: number }): DeriveInput {
+function toInput(state: LabState, box: Box): DeriveInput {
   return {
     outer: state.outer,
     padding: state.padding,
     border: state.border,
     focusOffset: state.focusOffset,
     focusWidth: state.focusWidth,
-    naiveMix: mix ? mix.naive : state.naive ? 1 : 0,
-    depthMix: mix ? mix.depth : state.depth === 3 ? 1 : 0,
+    naiveMix: state.naive ? 1 : 0,
+    depthMix: state.depth === 3 ? 1 : 0,
     cardWidth: box.w,
     cardHeight: box.h,
     buttonWidth: box.buttonW,
@@ -112,6 +113,10 @@ function cluster(points: Point[], epsilon = 1.25) {
   return groups
 }
 
+function revealTransition(reduced: boolean) {
+  return reduced ? { duration: 0 } : REVEAL
+}
+
 function CheckIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
@@ -123,6 +128,23 @@ function CheckIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  )
+}
+
+function SlidersIcon() {
+  return (
+    <svg className="icon icon-adjust" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="6" cy="4.5" r="1.35" fill="currentColor" />
+      <circle cx="10.5" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="7.5" cy="11.5" r="1.35" fill="currentColor" />
     </svg>
   )
 }
@@ -208,7 +230,7 @@ function Slider({
     <div className="slider">
       <div className="slider-top">
         <label htmlFor={id}>{label}</label>
-        <span className="slider-value">{value}px</span>
+        <span className="slider-value">{value}</span>
       </div>
       <input
         id={id}
@@ -258,7 +280,7 @@ function Knob({
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
     >
-      <span className="knob-tip">{value}px</span>
+      <span className="knob-tip">{value}</span>
     </button>
   )
 }
@@ -332,22 +354,24 @@ export function App() {
   const [drag, setDrag] = useState<DragKind | null>(null)
   const [ready, setReady] = useState(false)
   const [approveFocus, setApproveFocus] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [details, setDetails] = useState(false)
+  const [handlesOn, setHandlesOn] = useState(false)
+  const [holding, setHolding] = useState(false)
 
   const stateRef = useRef(state)
   const reducedRef = useRef(reduced)
-  const dragRef = useRef(false)
   const readyRef = useRef(false)
+  const holdTimer = useRef<number | null>(null)
   stateRef.current = state
   reducedRef.current = reduced
 
   const labRef = useRef<HTMLDivElement>(null)
   const shellRef = useRef<HTMLDivElement>(null)
-  const copyRef = useRef<HTMLDivElement>(null)
   const approveRef = useRef<HTMLButtonElement>(null)
-  const loupeRef = useRef<HTMLDivElement>(null)
-  const zoomRef = useRef<HTMLDivElement>(null)
   const mainGuidesRef = useRef<SVGSVGElement>(null)
-  const loupeGuidesRef = useRef<SVGSVGElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const adjustRef = useRef<HTMLButtonElement>(null)
   const depthRefs = useRef<Partial<Record<Depth, HTMLButtonElement>>>({})
 
   const outerS = useSpring(INITIAL.outer, SPRING)
@@ -357,6 +381,7 @@ export function App() {
   const focusWidthS = useSpring(INITIAL.focusWidth, SPRING)
   const naiveS = useSpring(0, SPRING)
   const depthS = useSpring(1, SPRING)
+  const guideO = useSpring(0, { stiffness: 380, damping: 34, mass: 0.6 })
 
   const commit = (partial: Partial<LabState>, how: "jump" | "spring") => {
     const next = { ...stateRef.current, ...partial }
@@ -373,6 +398,8 @@ export function App() {
   }
   const commitRef = useRef(commit)
   commitRef.current = commit
+
+  const guidesShown = state.showGuides || holding
 
   const paintRef = useRef(() => {})
   paintRef.current = () => {
@@ -417,31 +444,6 @@ export function App() {
     lab.style.setProperty("--approve-w", `${Math.ceil(measured.buttonW + 8)}px`)
 
     if (mainGuidesRef.current) drawGuides(mainGuidesRef.current, input, radii)
-    if (copyRef.current) {
-      copyRef.current.style.width = `${measured.w}px`
-      copyRef.current.style.height = `${measured.h}px`
-    }
-    if (loupeGuidesRef.current) drawGuides(loupeGuidesRef.current, input, radii)
-
-    const loupe = loupeRef.current
-    const zoom = zoomRef.current
-    if (loupe && zoom && rect.width > 20) {
-      const centers = cornerCenters(input, radii)
-      const mid = {
-        x: (centers.card.x + centers.button.x) / 2,
-        y: (centers.card.y + centers.button.y) / 2,
-      }
-      const reach =
-        Math.max(
-          distance(mid, centers.card) + radii.card,
-          distance(mid, centers.panel) + radii.panel,
-          distance(mid, centers.button) + Math.max(radii.button, radii.ringCenterline),
-          36,
-        ) + 18
-      const view = loupe.clientWidth
-      const scale = Math.min(2.6, Math.max(1.15, (view * 0.46) / reach))
-      zoom.style.transform = `translate(${view / 2 - mid.x * scale}px, ${view / 2 - mid.y * scale}px) scale(${scale})`
-    }
 
     if (rect.width > 20 && !readyRef.current) {
       readyRef.current = true
@@ -454,6 +456,9 @@ export function App() {
     const springs = [outerS, padS, borderS, focusOffsetS, focusWidthS, naiveS, depthS]
     const onChange = () => paintRef.current()
     const unsubs = springs.map((spring) => spring.on("change", onChange))
+    const unsubGuide = guideO.on("change", (value) => {
+      labRef.current?.style.setProperty("--guide-o", value.toFixed(3))
+    })
     const shell = shellRef.current
     const button = approveRef.current
     const observer = new ResizeObserver(() => {
@@ -481,9 +486,10 @@ export function App() {
     onChange()
     return () => {
       unsubs.forEach((unsubscribe) => unsubscribe())
+      unsubGuide()
       observer.disconnect()
     }
-  }, [outerS, padS, borderS, focusOffsetS, focusWidthS, naiveS, depthS])
+  }, [outerS, padS, borderS, focusOffsetS, focusWidthS, naiveS, depthS, guideO])
 
   useLayoutEffect(() => {
     if (!reduced) return
@@ -495,7 +501,61 @@ export function App() {
     writeSpring(focusWidthS, current.focusWidth, "jump")
     writeSpring(naiveS, current.naive ? 1 : 0, "jump")
     writeSpring(depthS, current.depth === 3 ? 1 : 0, "jump")
-  }, [reduced, outerS, padS, borderS, focusOffsetS, focusWidthS, naiveS, depthS])
+    writeSpring(guideO, guidesShown ? 1 : 0, "jump")
+  }, [reduced, outerS, padS, borderS, focusOffsetS, focusWidthS, naiveS, depthS, guideO, guidesShown])
+
+  useLayoutEffect(() => {
+    writeSpring(guideO, guidesShown ? 1 : 0, reduced ? "jump" : "set")
+  }, [guidesShown, reduced, guideO])
+
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      if (event.key !== "g" && event.key !== "G") return
+      if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return
+      const target = event.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
+      setHolding(true)
+    }
+    const up = (event: KeyboardEvent) => {
+      if (event.key === "g" || event.key === "G") setHolding(false)
+    }
+    const blur = () => setHolding(false)
+    window.addEventListener("keydown", down)
+    window.addEventListener("keyup", up)
+    window.addEventListener("blur", blur)
+    return () => {
+      window.removeEventListener("keydown", down)
+      window.removeEventListener("keyup", up)
+      window.removeEventListener("blur", blur)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!panelOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (panelRef.current?.contains(target)) return
+      if (adjustRef.current?.contains(target)) return
+      setDetails(false)
+      setPanelOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      if (details) {
+        setDetails(false)
+        return
+      }
+      setPanelOpen(false)
+      adjustRef.current?.focus()
+    }
+    window.addEventListener("pointerdown", onPointerDown)
+    window.addEventListener("keydown", onKey)
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [panelOpen, details])
 
   const onKnobPointerDown = (kind: DragKind) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
@@ -503,7 +563,6 @@ export function App() {
     if (!shell) return
     const pointerId = event.pointerId
     event.currentTarget.setPointerCapture(pointerId)
-    dragRef.current = true
     setDrag(kind)
     const move = (pointer: PointerEvent) => {
       if (pointer.pointerId !== pointerId) return
@@ -526,7 +585,6 @@ export function App() {
       if (pointer.pointerId !== pointerId) return
       window.removeEventListener("pointermove", move)
       window.removeEventListener("pointerup", up)
-      dragRef.current = false
       setDrag(null)
     }
     window.addEventListener("pointermove", move)
@@ -541,24 +599,31 @@ export function App() {
     commit({ [kind]: next }, "spring")
   }
 
+  const onShellPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = window.setTimeout(() => setHolding(true), 280)
+  }
+
+  const endHold = () => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = null
+    setHolding(false)
+  }
+
+  const onFrameClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) return
+    if ((event.target as HTMLElement).closest("button, a, input")) return
+    setHandlesOn((value) => !value)
+  }
+
   const settled = derive(toInput(state, box))
-  const mainStatus = drag
-    ? `Dragging ${drag === "outer" ? "outer radius" : drag}.`
-    : state.naive
-      ? "Naive mode uses one radius on every layer, so the centers split."
-      : state.depth === 2
-        ? "Depth 2 keeps the button a pill. Card and panel still share a center."
-        : settled.square
-          ? "Inner radius is 0. That corner is square."
-          : settled.pill
-            ? "The button clamped to height / 2, so its center moved."
-            : "The approve corner shares one center with the card and the panel."
 
   return (
     <div
       className="lab"
       ref={labRef}
-      data-guides={state.showGuides}
+      data-guides={guidesShown}
       data-naive={state.naive}
       data-depth={state.depth}
       data-square={settled.square}
@@ -567,157 +632,150 @@ export function App() {
       data-reduced={reduced}
       data-ready={ready}
       data-approve-focus={approveFocus}
+      data-panel={panelOpen}
+      data-details={details}
+      data-handles={handlesOn}
     >
-      <main className="page">
-        <header className="header">
-          <p className="eyebrow">Concentric corner lab</p>
-          <h1>Corners that share a center</h1>
-          <p className="deck">
-            Drag padding, border, and outer radius on the approval card. Inner corners, borders, and the focus ring stay on one center.
-          </p>
-        </header>
-
-        <div className="layout">
-          <div className="stage">
-            <div className="card-frame">
-              <div className="shell" ref={shellRef}>
-                <CardFace interactive approveRef={approveRef} onApproveFocus={setApproveFocus} />
-                <Guides svgRef={mainGuidesRef} />
-              </div>
-              <Knob
-                kind="outer"
-                label="Outer radius handle"
-                value={state.outer}
-                min={LIMITS.outer.min}
-                max={LIMITS.outer.max}
-                dragging={drag === "outer"}
-                onPointerDown={onKnobPointerDown("outer")}
-                onKeyDown={onKnobKey("outer")}
-              />
-              <Knob
-                kind="border"
-                label="Border width handle"
-                value={state.border}
-                min={LIMITS.border.min}
-                max={LIMITS.border.max}
-                dragging={drag === "border"}
-                onPointerDown={onKnobPointerDown("border")}
-                onKeyDown={onKnobKey("border")}
-              />
-              <Knob
-                kind="padding"
-                label="Padding handle"
-                value={state.padding}
-                min={LIMITS.padding.min}
-                max={LIMITS.padding.max}
-                dragging={drag === "padding"}
-                onPointerDown={onKnobPointerDown("padding")}
-                onKeyDown={onKnobKey("padding")}
-              />
-            </div>
+      <h1 className="sr">Concentric corner lab</h1>
+      <main className="stage">
+        <div className="card-frame" onClick={onFrameClick}>
+          <div className="bloom" aria-hidden="true">
+            <div className="bloom-rotor" />
           </div>
-
-          <div className="proof">
-            <figure className="loupe-block">
-              <div className="loupe" ref={loupeRef}>
-                <div className="loupe-zoom" ref={zoomRef} inert aria-hidden="true">
-                  <div className="shell shell-copy" ref={copyRef}>
-                    <CardFace interactive={false} />
-                    <Guides svgRef={loupeGuidesRef} />
-                  </div>
-                </div>
-              </div>
-              <figcaption>Corner</figcaption>
-            </figure>
-            <div className="readout">
-              <Formula state={state} radii={settled} />
-              <p className="legend">
-                <span>
-                  <i className="swatch swatch-card" aria-hidden="true" /> Card
-                </span>
-                <span>
-                  <i className="swatch swatch-panel" aria-hidden="true" /> Panel
-                </span>
-                <span>
-                  <i className="swatch swatch-button" aria-hidden="true" /> Button
-                </span>
-                <span>
-                  <i className="swatch swatch-ring" aria-hidden="true" /> Ring
-                </span>
-              </p>
-              <div className="status">
-                <p className="status-main">{mainStatus}</p>
-                <p className="status-sub">
-                  {reduced
-                    ? "Reduced motion is on. Updates are instant."
-                    : "Sliders ease on a spring. Card handles track the pointer."}
-                </p>
-              </div>
-              <p className="credit">
-                Inspired by{" "}
-                <a href="https://x.com/maybepratikk/status/2118614980635603062">@maybepratikk</a>
-                &apos;s radius notes.
-              </p>
-            </div>
+          <div
+            className="shell"
+            ref={shellRef}
+            onPointerDown={onShellPointerDown}
+            onPointerUp={endHold}
+            onPointerCancel={endHold}
+            onPointerLeave={endHold}
+          >
+            <CardFace interactive approveRef={approveRef} onApproveFocus={setApproveFocus} />
+            <Guides svgRef={mainGuidesRef} />
           </div>
+          <Knob
+            kind="outer"
+            label="Outer radius handle"
+            value={state.outer}
+            min={LIMITS.outer.min}
+            max={LIMITS.outer.max}
+            dragging={drag === "outer"}
+            onPointerDown={onKnobPointerDown("outer")}
+            onKeyDown={onKnobKey("outer")}
+          />
+          <Knob
+            kind="border"
+            label="Border width handle"
+            value={state.border}
+            min={LIMITS.border.min}
+            max={LIMITS.border.max}
+            dragging={drag === "border"}
+            onPointerDown={onKnobPointerDown("border")}
+            onKeyDown={onKnobKey("border")}
+          />
+          <Knob
+            kind="padding"
+            label="Padding handle"
+            value={state.padding}
+            min={LIMITS.padding.min}
+            max={LIMITS.padding.max}
+            dragging={drag === "padding"}
+            onPointerDown={onKnobPointerDown("padding")}
+            onKeyDown={onKnobKey("padding")}
+          />
+        </div>
+        <p className="whisper">Drag the corner or the edge.</p>
+        <button
+          type="button"
+          className="affordance"
+          ref={adjustRef}
+          aria-expanded={panelOpen}
+          aria-controls="adjust-panel"
+          onClick={() => setPanelOpen((open) => !open)}
+        >
+          <SlidersIcon />
+          Adjust
+        </button>
+      </main>
 
-          <aside className="controls">
-            <section className="group" aria-labelledby="geometry-label">
-              <p className="group-label" id="geometry-label">
-                Geometry
-              </p>
-              <Slider
-                id="outer-radius"
-                label="Outer radius"
-                value={state.outer}
-                min={LIMITS.outer.min}
-                max={LIMITS.outer.max}
-                onChange={(outer) => commit({ outer }, "spring")}
-              />
-              <Slider
-                id="padding"
-                label="Padding"
-                value={state.padding}
-                min={LIMITS.padding.min}
-                max={LIMITS.padding.max}
-                onChange={(padding) => commit({ padding }, "spring")}
-              />
-              <Slider
-                id="border"
-                label="Border"
-                value={state.border}
-                min={LIMITS.border.min}
-                max={LIMITS.border.max}
-                onChange={(border) => commit({ border }, "spring")}
-              />
-            </section>
-
-            <section className="group" aria-labelledby="focus-label">
-              <p className="group-label" id="focus-label">
-                Focus ring
-              </p>
-              <Slider
-                id="focus-offset"
-                label="Focus offset"
-                value={state.focusOffset}
-                min={LIMITS.focusOffset.min}
-                max={LIMITS.focusOffset.max}
-                onChange={(focusOffset) => commit({ focusOffset }, "spring")}
-              />
-              <Slider
-                id="focus-width"
-                label="Focus width"
-                value={state.focusWidth}
-                min={LIMITS.focusWidth.min}
-                max={LIMITS.focusWidth.max}
-                onChange={(focusWidth) => commit({ focusWidth }, "spring")}
-              />
-            </section>
-
-            <section className="group" aria-labelledby="compare-label">
-              <p className="group-label" id="compare-label">
-                Compare
-              </p>
+      <motion.div
+        id="adjust-panel"
+        className="sheet"
+        ref={panelRef}
+        role="dialog"
+        aria-label="Adjust"
+        inert={!panelOpen}
+        initial={false}
+        animate={
+          panelOpen
+            ? { opacity: 1, y: 0, filter: "blur(0px)" }
+            : { opacity: 0, y: 10, filter: "blur(8px)" }
+        }
+        transition={revealTransition(reduced)}
+        style={{ pointerEvents: panelOpen ? "auto" : "none" }}
+      >
+        <div className="sheet-head">
+          <p className="sheet-title">Adjust</p>
+        </div>
+        <div className="sheet-body">
+          <Slider
+            id="outer-radius"
+            label="Outer radius"
+            value={state.outer}
+            min={LIMITS.outer.min}
+            max={LIMITS.outer.max}
+            onChange={(outer) => commit({ outer }, "spring")}
+          />
+          <Slider
+            id="padding"
+            label="Padding"
+            value={state.padding}
+            min={LIMITS.padding.min}
+            max={LIMITS.padding.max}
+            onChange={(padding) => commit({ padding }, "spring")}
+          />
+          <Slider
+            id="border"
+            label="Border"
+            value={state.border}
+            min={LIMITS.border.min}
+            max={LIMITS.border.max}
+            onChange={(border) => commit({ border }, "spring")}
+          />
+          <Slider
+            id="focus-offset"
+            label="Focus offset"
+            value={state.focusOffset}
+            min={LIMITS.focusOffset.min}
+            max={LIMITS.focusOffset.max}
+            onChange={(focusOffset) => commit({ focusOffset }, "spring")}
+          />
+          <Slider
+            id="focus-width"
+            label="Focus width"
+            value={state.focusWidth}
+            min={LIMITS.focusWidth.min}
+            max={LIMITS.focusWidth.max}
+            onChange={(focusWidth) => commit({ focusWidth }, "spring")}
+          />
+        </div>
+        <div className="sheet-foot">
+          <button
+            type="button"
+            className="details-toggle"
+            aria-expanded={details}
+            onClick={() => setDetails((open) => !open)}
+          >
+            Geometry
+          </button>
+          <motion.div
+            className="details"
+            inert={!details}
+            initial={false}
+            animate={details ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
+            transition={revealTransition(reduced)}
+          >
+            <div className="details-inner">
               <div
                 className="depths"
                 role="radiogroup"
@@ -772,12 +830,27 @@ export function App() {
                 Naive radius
               </button>
               <p className="help" id="naive-help">
-                Same radius on every layer.
+                Same radius on every layer. Hold G, or press and hold the card, to peek at the arcs.
               </p>
-            </section>
-          </aside>
+              <Formula state={state} radii={settled} />
+              <p className="note">
+                {settled.square
+                  ? "Inner radius is 0. That corner is square."
+                  : settled.pill
+                    ? "The button clamped to height / 2, so its center moved."
+                    : state.depth === 2
+                      ? "Depth 2 keeps the button a pill."
+                      : "The approve corner shares one center."}
+              </p>
+              <p className="credit">
+                Inspired by{" "}
+                <a href="https://x.com/maybepratikk/status/2118614980635603062">@maybepratikk</a>
+                &apos;s radius notes.
+              </p>
+            </div>
+          </motion.div>
         </div>
-      </main>
+      </motion.div>
     </div>
   )
 }
@@ -788,9 +861,7 @@ function Formula({ state, radii }: { state: LabState; radii: ReturnType<typeof d
     lines = (
       <>
         <span>naive panel = outer = {formatPx(radii.panel)}</span>
-        <span>
-          naive button = min(height / 2, outer) = {formatPx(radii.button)}
-        </span>
+        <span>naive button = min(height / 2, outer) = {formatPx(radii.button)}</span>
       </>
     )
   } else if (state.depth === 2) {
@@ -809,7 +880,8 @@ function Formula({ state, radii }: { state: LabState; radii: ReturnType<typeof d
           panel = max(0, {state.outer} − {state.padding} − {state.border}) = {formatPx(radii.panel)}
         </span>
         <span>
-          button = min({BUTTON_HEIGHT / 2}, max(0, {formatPx(radii.panel)} − {state.padding} − {state.border})) = {formatPx(radii.button)}
+          button = min({BUTTON_HEIGHT / 2}, max(0, {formatPx(radii.panel)} − {state.padding} − {state.border})) ={" "}
+          {formatPx(radii.button)}
         </span>
       </>
     )
