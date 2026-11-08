@@ -6,9 +6,29 @@ import {
   STATUS_LABEL,
   springFor,
   watchLine,
+  type Agent,
   type RequestView,
+  type StepView,
 } from "./model.ts"
 import { Avatar, BlockNote, Bloom, Outputs, StepTree, Stream } from "./ui.tsx"
+
+function hands(request: RequestView): Agent[] {
+  const found: Agent[] = []
+  const collect = (status: StepView["status"]) => {
+    const walk = (steps: StepView[]) => {
+      for (const step of steps) {
+        if (step.status === status && step.agent.id !== "june" && !found.some((agent) => agent.id === step.agent.id)) {
+          found.push(step.agent)
+        }
+        walk(step.children)
+      }
+    }
+    walk(request.steps)
+  }
+  collect("working")
+  if (found.length === 0) collect("blocked")
+  return found
+}
 
 export function Board({ requests, reduced }: { requests: RequestView[]; reduced: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null)
@@ -22,6 +42,16 @@ export function Board({ requests, reduced }: { requests: RequestView[]; reduced:
   return (
     <div className="board-wrap">
       <div className="board">
+        {COLUMNS.map((column, index) => {
+          const count = requests.filter((request) => request.status === column.id).length
+          return (
+            <div
+              key={`${column.id}-tray`}
+              className="tray"
+              style={{ gridColumn: index + 1, gridRow: `1 / span ${1 + Math.max(count, 1)}` }}
+            />
+          )
+        })}
         {COLUMNS.map((column, index) => {
           const items = requests.filter((request) => request.status === column.id)
           return (
@@ -88,6 +118,8 @@ function Card({
   onOpen: () => void
 }) {
   const working = request.status === "working"
+  const active = hands(request)
+  const label = active.length === 0 ? "June" : `June → ${active.map((agent) => agent.name).join(", ")}`
   return (
     <motion.div
       layout="position"
@@ -111,8 +143,13 @@ function Card({
         </span>
         <span className="bcard-title">{request.title}</span>
         <span className="assignee">
-          <Avatar person={AGENTS.june} size={22} />
-          <span>June</span>
+          <span className="stack">
+            <Avatar person={AGENTS.june} size={22} />
+            {active.map((agent) => (
+              <Avatar key={agent.id} person={agent} size={22} />
+            ))}
+          </span>
+          <span className="assignee-name">{label}</span>
         </span>
         <span className="glance">{watchLine(request)}</span>
         <span className="sr">{STATUS_LABEL[request.status]}</span>

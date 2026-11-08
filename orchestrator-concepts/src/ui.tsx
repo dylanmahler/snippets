@@ -123,11 +123,16 @@ export function Stream({
   )
 }
 
-function StepRow({ step }: { step: StepView }) {
+function StepRow({ step, nested = false }: { step: StepView; nested?: boolean }) {
   const [open, setOpen] = useState(false)
   const hasChildren = step.children.length > 0
   const live = step.status === "working"
-  const face = (
+  const face = nested ? (
+    <>
+      <span className="step-summary">{step.summary}</span>
+      <span className="step-state">{STEP_LABEL[step.status]}</span>
+    </>
+  ) : (
     <>
       <span className="step-avatar">
         {live && <Bloom />}
@@ -158,9 +163,9 @@ function StepRow({ step }: { step: StepView }) {
       )}
       {hasChildren && open && (
         <ol className="steps steps-nested">
-          {step.children.map((child) => (
-            <StepRow key={child.id} step={child} />
-          ))}
+{step.children.map((child) => (
+              <StepRow key={child.id} step={child} nested />
+            ))}
         </ol>
       )}
     </li>

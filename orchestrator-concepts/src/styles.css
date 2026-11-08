@@ -24,6 +24,9 @@
   --pad-switch: 4px;
   --b-switch: 1px;
   --r-segment: calc(var(--r-switch) - var(--pad-switch) - var(--b-switch));
+  --r-bcard: 20px;
+  --pad-tray: 8px;
+  --r-tray: calc(var(--r-bcard) + var(--pad-tray));
   color: var(--ink);
   background: var(--page);
   font-family: var(--sans);
@@ -246,10 +249,10 @@ button:disabled {
 }
 
 .chip .bloom {
-  inset: -14px;
-  border-radius: 24px;
-  filter: blur(12px);
-  opacity: 0.9;
+  inset: -20px;
+  border-radius: 28px;
+  filter: blur(16px);
+  animation: chip-breathe 7.5s ease-in-out infinite;
 }
 
 .step-avatar .bloom {
@@ -272,6 +275,16 @@ button:disabled {
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+@keyframes chip-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
@@ -553,7 +566,18 @@ button:disabled {
 }
 
 .steps-nested {
-  margin: 4px 0 2px 28px;
+  margin: 2px 0 4px 38px;
+}
+
+.steps-nested .step-toggle {
+  min-height: 32px;
+  padding: 4px 8px;
+  gap: 12px;
+}
+
+.steps-nested .step-summary {
+  flex: 1;
+  min-width: 0;
 }
 
 .step-toggle {
@@ -633,18 +657,30 @@ button.step-toggle:focus-visible {
 .board {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  column-gap: 12px;
+  column-gap: calc(var(--pad-tray) * 2 + 4px);
   row-gap: 8px;
   align-items: start;
-  padding: 4px 2px 20px;
+  padding: 12px 12px 24px;
+}
+
+.tray {
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--r-tray);
+  margin: calc(var(--pad-tray) * -1);
+  width: calc(100% + var(--pad-tray) * 2);
+  height: calc(100% + var(--pad-tray) * 2);
 }
 
 .column-head {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 28px;
-  padding: 0 4px 4px;
+  padding: 4px 4px 4px;
 }
 
 .column-head h2 {
@@ -664,7 +700,9 @@ button.step-toggle:focus-visible {
 }
 
 .column-empty {
-  margin: 8px 4px;
+  position: relative;
+  z-index: 1;
+  margin: 8px 4px 4px;
   font-size: 13px;
   line-height: 18px;
   letter-spacing: -0.011em;
@@ -673,6 +711,7 @@ button.step-toggle:focus-visible {
 
 .bcard-wrap {
   position: relative;
+  z-index: 1;
 }
 
 .bcard {
@@ -687,7 +726,7 @@ button.step-toggle:focus-visible {
   text-align: left;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--r-bcard);
   box-shadow: 0 1px 1px rgba(40, 32, 22, 0.04);
 }
 
@@ -743,6 +782,21 @@ button.step-toggle:focus-visible {
   font-size: 13px;
   line-height: 18px;
   letter-spacing: -0.011em;
+  min-width: 0;
+}
+
+.stack {
+  display: flex;
+  flex: none;
+}
+
+.stack .avatar + .avatar {
+  margin-left: -8px;
+  box-shadow: 0 0 0 2px var(--card);
+}
+
+.assignee-name {
+  min-width: 0;
 }
 
 .glance {
@@ -1247,6 +1301,7 @@ button.step-toggle:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .bloom,
   .bloom-rotor,
+  .chip .bloom,
   .bars span,
   .fill-in,
   .feed-toggle .chevron,
@@ -1263,6 +1318,7 @@ button.step-toggle:focus-visible {
 
 .app[data-reduced] .bloom,
 .app[data-reduced] .bloom-rotor,
+.app[data-reduced] .chip .bloom,
 .app[data-reduced] .bars span,
 .app[data-reduced] .fill-in,
 .app[data-reduced] .feed-toggle .chevron,
