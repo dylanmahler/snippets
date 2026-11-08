@@ -53,7 +53,7 @@ for (let i = 0; i < frames; i += 1) {
   await film.evaluate((next) => window.__setFilmTime(next), time)
   await film.screenshot({ path: path.join(framesDir, `frame-${String(i).padStart(5, "0")}.png`), type: "png" })
   if (i === 24) await film.screenshot({ path: path.join(outDir, "opening-1080.png"), type: "png" })
-  if (i === 504) await film.screenshot({ path: path.join(outDir, "payoff-1080.png"), type: "png" })
+  if (i === 660) await film.screenshot({ path: path.join(outDir, "payoff-1080.png"), type: "png" })
   if (i % 120 === 0) console.log(`frame ${i}/${frames}`)
 }
 
@@ -63,7 +63,7 @@ const live = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 await live.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" })
 await live.evaluate(() => document.fonts.ready)
 await live.screenshot({ path: path.join(outDir, "opening-390.png"), type: "png" })
-await live.goto(`http://127.0.0.1:${port}/?radius=56&pad=20&guides=1`, { waitUntil: "networkidle" })
+await live.goto(`http://127.0.0.1:${port}/?mode=concentric&radius=28`, { waitUntil: "networkidle" })
 await live.screenshot({ path: path.join(outDir, "payoff-390.png"), type: "png" })
 
 const reduced = await browser.newPage({
@@ -72,7 +72,7 @@ const reduced = await browser.newPage({
   reducedMotion: "reduce",
 })
 await reduced.goto(`http://127.0.0.1:${port}/?film=1`, { waitUntil: "networkidle" })
-const reducedBadge = await reduced.locator(".badge").textContent()
+const reducedBadge = await reduced.locator(".equation").textContent()
 console.log("reduced film badge", reducedBadge)
 await reduced.close()
 await live.close()

@@ -1,28 +1,20 @@
 # Concentric corner lab
 
-An interactive stress test for nested corner radii. The surface is a production approval card: outer card, inner panel, action pill. Drag padding, border width, and outer radius. Inner corners, borders, and the outward focus ring stay on one shared center.
-
-Guides draw each corner's arc and its center so you can see them meet. Naive mode paints the same radius on every level, and the centers split.
+Two nested sheets. Matched corners copy the outer radius onto the inner one, so the gap pinches. Concentric corners use one subtraction, and the gap stays even.
 
 ## Formula
 
 ```
-panel  = max(0, outer - padding - border)
-button = min(height / 2, max(0, panel - padding - border))
-ring   = button + focus offset + focus width / 2
+inner = max(0, outer - padding - border)
 ```
 
-The ring radius is the stroke centerline. The ring is drawn outside the control: its CSS border box starts `offset + width` beyond the button, with outer radius `button + offset + width`.
+This specimen fixes padding at 10px and the border at 1px, so a 36px outer corner resolves to 25px. The border is a real 1px line because it is part of the formula. A radius never exceeds half the shorter side, and it stops at 0 when the gap is larger than the outer corner.
 
-A pill never exceeds `height / 2` (the radius CSS actually paints, not `999px`). When padding and border exceed the outer radius, the inner radius hits 0 and that corner goes square.
-
-Depth 2 derives the panel only and leaves the action as a pill. Depth 3 derives the button too.
-
-Dragging a handle tracks the pointer 1:1 and keeps the grip you picked up. Keyboard changes the same values immediately. `prefers-reduced-motion` leaves the drag direct and holds the prism still.
+Drag the bottom-right grip. It tracks the pointer 1:1. Switching to concentric eases the inner corner in 220ms. Keyboard changes are immediate. `prefers-reduced-motion` keeps the drag and drops the settle.
 
 ## Credit
 
-Inspired by [@maybepratikk](https://x.com/maybepratikk/status/2118614980635603062)'s radius notes. This lab makes those edge cases draggable, includes borders and outward focus rings, and puts the math on a nested approval card instead of abstract boxes.
+The relationship comes from concentric radius teaching examples, including [@maybepratikk](https://x.com/maybepratikk/status/2118614980635603062). The inspector edge is Jakub Krehel's shadow recipe from [jakub.kr/work/shadows](https://jakub.kr/work/shadows).
 
 ## Run
 
@@ -33,16 +25,8 @@ npm test
 npm run dev
 ```
 
-Open the printed local URL. `npm run build` typechecks and writes `dist/`.
-
-## Layers
-
-The card shows one equation, `outer − padding − border = panel`, and a corner grip. Drag that grip for the outer radius. The inner edge, on hover or tap, drags padding.
-
-Guides appear while you drag, or from the Guides control. Compare paints the naive radius. Adjust opens a tray for radius, padding, and border. More, inside the tray, holds the focus ring, depth, and the credit.
-
-`?film=1` is a 540px square stage (captured at 2x) with a scripted pointer. `?film=1&t=8400` is the payoff frame.
+`npm run build` typechecks and writes `dist/`. `?film=1` is the 12 second specimen film, authored at 540 CSS pixels. `?film=1&t=11000` is the payoff frame.
 
 ## Preview
 
-Branch previews are the Vercel deployment for this pull request. The URL is posted on the PR when the build finishes.
+Branch previews are the Vercel deployment for this branch. Production is `main`.

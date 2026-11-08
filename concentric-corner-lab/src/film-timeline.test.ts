@@ -1,48 +1,53 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { FILM_MS, OPENING, PAYOFF, filmAt } from "./film-timeline.ts"
+import { FILM_MS, filmAt } from "./film-timeline.ts"
+import { sheetRadii } from "./specimen.ts"
 
 describe("film timeline", () => {
-  it("opens and ends on the same frame", () => {
-    const open = filmAt(0)
-    const end = filmAt(FILM_MS)
-    assert.equal(open.outer, OPENING.outer)
-    assert.equal(open.padding, OPENING.padding)
+  it("opens on the matched error", () => {
+    const open = filmAt(400)
+    const radii = sheetRadii(open.outer, open.concentric)
+    assert.equal(open.outer, 36)
+    assert.equal(open.concentric, 0)
+    assert.equal(radii.inner, 36)
     assert.equal(open.guides, 0)
-    assert.equal(open.naiveMix, 0)
-    assert.equal(end.outer, open.outer)
-    assert.equal(end.padding, open.padding)
-    assert.equal(end.guides, 0)
-    assert.equal(end.naiveMix, 0)
-    assert.equal(end.from, "park")
-    assert.equal(end.to, "park")
   })
 
-  it("holds the payoff for two seconds with the gap corrected", () => {
-    const payoff = filmAt(8400)
-    assert.equal(payoff.outer, PAYOFF.outer)
-    assert.equal(payoff.padding, PAYOFF.padding)
-    assert.equal(payoff.border, PAYOFF.border)
-    assert.equal(payoff.guides, 1)
-    assert.equal(payoff.naiveMix, 0)
-    assert.equal(filmAt(7500).outer, PAYOFF.outer)
-    assert.equal(filmAt(9400).padding, PAYOFF.padding)
+  it("grows the outer corner while the inner wrongly follows", () => {
+    const mid = filmAt(2600)
+    assert.equal(mid.concentric, 0)
+    assert.equal(mid.from, "grip")
+    assert.ok(mid.outer > 36 && mid.outer < 48)
+    assert.equal(sheetRadii(mid.outer, 0).inner, sheetRadii(mid.outer, 0).card)
+    assert.equal(filmAt(3200).outer, 48)
   })
 
-  it("tracks the radius drag without leaving the grip", () => {
-    const early = filmAt(1800)
-    const late = filmAt(3000)
-    assert.equal(early.from, "radius")
-    assert.equal(early.to, "radius")
-    assert.equal(early.pressed, true)
-    assert.ok(early.outer > 40 && early.outer < 56)
-    assert.ok(late.outer > early.outer)
-    assert.equal(late.guides, 1)
+  it("corrects only the inner radius", () => {
+    const done = filmAt(4500)
+    assert.equal(done.outer, 48)
+    assert.equal(done.concentric, 1)
+    assert.equal(sheetRadii(48, 1).inner, 37)
+    const during = filmAt(3750)
+    assert.equal(during.outer, 48)
+    assert.ok(during.concentric > 0 && during.concentric < 1)
   })
 
-  it("shows naive only between the compare presses", () => {
-    assert.equal(filmAt(6000).naiveMix, 0)
-    assert.equal(filmAt(6600).naiveMix, 1)
-    assert.equal(filmAt(7200).naiveMix, 0)
+  it("tracks the inner radius with a constant gap and then holds", () => {
+    const mid = filmAt(6200)
+    assert.equal(mid.concentric, 1)
+    assert.ok(mid.outer < 48 && mid.outer > 28)
+    const radii = sheetRadii(mid.outer, 1)
+    assert.equal(radii.inner, radii.formula)
+    assert.equal(radii.card - radii.inner, 11)
+
+    const hold = filmAt(11000)
+    const end = filmAt(FILM_MS)
+    assert.equal(hold.outer, 28)
+    assert.equal(hold.concentric, 1)
+    assert.equal(hold.guides, 0)
+    assert.equal(sheetRadii(28, 1).inner, 17)
+    assert.equal(end.outer, hold.outer)
+    assert.equal(end.concentric, hold.concentric)
+    assert.notEqual(end.outer, filmAt(0).outer)
   })
 })

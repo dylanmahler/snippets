@@ -36,6 +36,21 @@ One snippet makes one relationship unmistakable. Quiet is not tiny, empty, or lo
 - Nested radius: `inner = max(0, outer - padding - border)` on each edge. Pills clamp to half the height. Focus-ring centerline: `R + gap + stroke/2`, drawn outside the control. Check zero, pill, thick border, and padding greater than radius.
 - Prism: one localized conic layer, blur 24–32px. Idle opacity .12–.18, active .28–.36, on its own layer. Stop at rest. A high-contrast ring remains if the prism is removed. Bloom is never the only state signal.
 
+## Surface
+
+Ordinary controls use `border: 0` and Jakub Krehel's edge, from [jakub.kr/work/shadows](https://jakub.kr/work/shadows). Do not stack a gray CSS border on top of it.
+
+```css
+box-shadow:
+  0 0 0 1px rgb(0 0 0 / .06),
+  0 1px 2px -1px rgb(0 0 0 / .06),
+  0 2px 4px rgb(0 0 0 / .04);
+```
+
+Hover uses the same three layers at .08 / .08 / .06. A specimen whose border is part of the formula keeps that real border and, at most, `0 2px 4px rgb(0 0 0 / .04)`. It does not also get the 1px ring shadow.
+
+Grain default off. Gradients sit behind content, never over labels.
+
 ## Motion
 
 Product UI, not the film:

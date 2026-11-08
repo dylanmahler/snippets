@@ -1,16 +1,15 @@
+import { lerp } from "./radius.ts"
+
 export const FILM_MS = 12000
 
-export const OPENING = { outer: 40, padding: 12, border: 2 }
-export const PAYOFF = { outer: 56, padding: 20, border: 2 }
-
-export type Spot = "park" | "radius" | "pad" | "compare" | "reset"
-export type CursorKind = "arrow" | "ew" | "ns"
+export type Spot = "park" | "grip" | "concentric"
+export type CursorKind = "arrow" | "ew"
 
 export type FilmFrame = {
   outer: number
-  padding: number
-  border: number
-  naiveMix: number
+  padding: 10
+  border: 1
+  concentric: number
   guides: number
   from: Spot
   to: Spot
@@ -29,39 +28,42 @@ function span(time: number, start: number, end: number) {
   return (time - start) / (end - start)
 }
 
-function lerp(from: number, to: number, amount: number) {
-  return from + (to - from) * amount
-}
-
-/** cubic-bezier(0.45, 0, 0.1, 1). Presentation travel only. */
-export function easeTravel(amount: number) {
+function bezier(amount: number, x1: number, y1: number, x2: number, y2: number) {
   const t = clamp01(amount)
   let guess = t
   for (let i = 0; i < 6; i += 1) {
-    const x = sampleBezier(guess, 0.45, 0.1)
-    const dx = sampleBezierDerivative(guess, 0.45, 0.1)
+    const x = sample(guess, x1, x2)
+    const dx = derivative(guess, x1, x2)
     if (Math.abs(dx) < 1e-6) break
     guess = Math.min(1, Math.max(0, guess - (x - t) / dx))
   }
-  return sampleBezier(guess, 0, 1)
+  return sample(guess, y1, y2)
 }
 
-function sampleBezier(t: number, p1: number, p2: number) {
+function sample(t: number, p1: number, p2: number) {
   const u = 1 - t
   return 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t
 }
 
-function sampleBezierDerivative(t: number, p1: number, p2: number) {
+function derivative(t: number, p1: number, p2: number) {
   const u = 1 - t
   return 3 * u * u * p1 + 6 * u * t * (p2 - p1) + 3 * t * t * (1 - p2)
 }
 
-function hold(
-  partial: Partial<FilmFrame> & Pick<FilmFrame, "outer" | "padding" | "from">,
-): FilmFrame {
+/** Cursor travel. The radius value stays glued to the grip. */
+export function easeTravel(amount: number) {
+  return bezier(amount, 0.45, 0, 0.1, 1)
+}
+
+/** Product correction. No overshoot. */
+export function easeOut(amount: number) {
+  return bezier(amount, 0.23, 1, 0.32, 1)
+}
+
+function frame(partial: Partial<FilmFrame> & Pick<FilmFrame, "outer" | "concentric" | "from">): FilmFrame {
   return {
-    border: 2,
-    naiveMix: 0,
+    padding: 10,
+    border: 1,
     guides: 0,
     to: partial.from,
     travel: 1,
@@ -74,140 +76,86 @@ function hold(
 export function filmAt(time: number): FilmFrame {
   const t = Math.min(FILM_MS, Math.max(0, time))
 
-  if (t < 1000) {
-    return hold({ outer: 40, padding: 12, from: "park" })
+  if (t < 1500) {
+    return frame({ outer: 36, concentric: 0, from: "park" })
   }
-  if (t < 1400) {
-    return hold({
-      outer: 40,
-      padding: 12,
+  if (t < 1750) {
+    return frame({
+      outer: 36,
+      concentric: 0,
       from: "park",
-      to: "radius",
-      travel: easeTravel(span(t, 1000, 1400)),
+      to: "grip",
+      travel: easeTravel(span(t, 1500, 1750)),
       cursor: "ew",
     })
   }
-  if (t < 1560) {
-    return hold({ outer: 40, padding: 12, from: "radius", pressed: true, cursor: "ew" })
-  }
-  if (t < 3160) {
-    const u = easeTravel(span(t, 1560, 3160))
-    return hold({
-      outer: lerp(40, 56, u),
-      padding: 12,
-      guides: t < 1680 ? span(t, 1560, 1680) : 1,
-      from: "radius",
+  if (t < 3200) {
+    return frame({
+      outer: lerp(36, 48, easeTravel(span(t, 1750, 3200))),
+      concentric: 0,
+      guides: t < 1870 ? span(t, 1750, 1870) : 1,
+      from: "grip",
       pressed: true,
       cursor: "ew",
     })
   }
-  if (t < 3560) {
-    return hold({ outer: 56, padding: 12, guides: 1, from: "radius", cursor: "ew" })
-  }
-  if (t < 3960) {
-    return hold({
-      outer: 56,
-      padding: 12,
+  if (t < 3480) {
+    return frame({
+      outer: 48,
+      concentric: 0,
       guides: 1,
-      from: "radius",
-      to: "pad",
-      travel: easeTravel(span(t, 3560, 3960)),
-      cursor: "ns",
+      from: "grip",
+      to: "concentric",
+      travel: easeTravel(span(t, 3200, 3480)),
     })
   }
-  if (t < 4120) {
-    return hold({ outer: 56, padding: 12, guides: 1, from: "pad", pressed: true, cursor: "ns" })
-  }
-  if (t < 5320) {
-    const u = easeTravel(span(t, 4120, 5320))
-    return hold({
-      outer: 56,
-      padding: lerp(12, 20, u),
+  if (t < 3640) {
+    return frame({
+      outer: 48,
+      concentric: 0,
       guides: 1,
-      from: "pad",
-      pressed: true,
-      cursor: "ns",
-    })
-  }
-  if (t < 5720) {
-    return hold({ outer: 56, padding: 20, guides: 1, from: "pad", cursor: "ns" })
-  }
-  if (t < 6120) {
-    return hold({
-      outer: 56,
-      padding: 20,
-      guides: 1,
-      from: "pad",
-      to: "compare",
-      travel: easeTravel(span(t, 5720, 6120)),
-    })
-  }
-  if (t < 6280) {
-    return hold({
-      outer: 56,
-      padding: 20,
-      guides: 1,
-      naiveMix: span(t, 6200, 6280),
-      from: "compare",
+      from: "concentric",
       pressed: true,
     })
   }
-  if (t < 6880) {
-    return hold({ outer: 56, padding: 20, guides: 1, naiveMix: 1, from: "compare" })
-  }
-  if (t < 7040) {
-    return hold({
-      outer: 56,
-      padding: 20,
+  if (t < 5000) {
+    return frame({
+      outer: 48,
+      concentric: easeOut(span(t, 3640, 3860)),
       guides: 1,
-      naiveMix: 1 - span(t, 6960, 7040),
-      from: "compare",
+      from: "concentric",
+    })
+  }
+  if (t < 5250) {
+    return frame({
+      outer: 48,
+      concentric: 1,
+      guides: 1,
+      from: "concentric",
+      to: "grip",
+      travel: easeTravel(span(t, 5000, 5250)),
+      cursor: "ew",
+    })
+  }
+  if (t < 7000) {
+    return frame({
+      outer: lerp(48, 28, easeTravel(span(t, 5250, 7000))),
+      concentric: 1,
+      guides: 1,
+      from: "grip",
       pressed: true,
-    })
-  }
-  if (t < 7440) {
-    return hold({
-      outer: 56,
-      padding: 20,
-      guides: 1,
-      from: "compare",
-      to: "park",
-      travel: easeTravel(span(t, 7040, 7440)),
-    })
-  }
-  if (t < 9440) {
-    return hold({ outer: 56, padding: 20, guides: 1, from: "park" })
-  }
-  if (t < 9840) {
-    return hold({
-      outer: 56,
-      padding: 20,
-      guides: 1,
-      from: "park",
-      to: "reset",
-      travel: easeTravel(span(t, 9440, 9840)),
+      cursor: "ew",
     })
   }
   if (t < 10000) {
-    return hold({ outer: 56, padding: 20, guides: 1, from: "reset", pressed: true })
-  }
-  if (t < 10800) {
-    const u = easeTravel(span(t, 10000, 10640))
-    return hold({
-      outer: lerp(56, 40, u),
-      padding: lerp(20, 12, u),
-      guides: 1 - u,
-      from: "reset",
-    })
-  }
-  if (t < 11600) {
-    return hold({
-      outer: 40,
-      padding: 12,
-      from: "reset",
+    return frame({
+      outer: 28,
+      concentric: 1,
+      guides: 1 - span(t, 7000, 7120),
+      from: "grip",
       to: "park",
-      travel: easeTravel(span(t, 10800, 11600)),
+      travel: easeTravel(span(t, 7000, 7360)),
     })
   }
-  return hold({ outer: 40, padding: 12, from: "park" })
+  return frame({ outer: 28, concentric: 1, guides: 0, from: "park" })
 }
