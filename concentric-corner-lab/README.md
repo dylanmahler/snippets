@@ -18,7 +18,7 @@ A pill never exceeds `height / 2` (the radius CSS actually paints, not `999px`).
 
 Depth 2 derives the panel only and leaves the action as a pill. Depth 3 derives the button too.
 
-Slider changes ease with a spring (stiffness 320, damping 28, mass 0.7). Dragging a handle on the card tracks the pointer. `prefers-reduced-motion` snaps to the new value.
+Dragging a handle tracks the pointer 1:1 and keeps the grip you picked up. Keyboard changes the same values immediately. `prefers-reduced-motion` leaves the drag direct and holds the prism still.
 
 ## Credit
 
@@ -37,9 +37,11 @@ Open the printed local URL. `npm run build` typechecks and writes `dist/`.
 
 ## Layers
 
-The first view is the card and a quiet line. Drag the corner for radius, or the inner edge for padding. Handles fade in on hover, and on a tap when there is no hover.
+The card shows one equation, `outer − padding − border = panel`, and a corner grip. Drag that grip for the outer radius. The inner edge, on hover or tap, drags padding.
 
-Adjust opens the numeric controls. Geometry, one level deeper, holds the formula, the guides, and naive mode. Hold G, or press and hold the card, to see the arcs without pinning them.
+Guides appear while you drag, or from the Guides control. Compare paints the naive radius. Adjust opens a tray for radius, padding, and border. More, inside the tray, holds the focus ring, depth, and the credit.
+
+`?film=1` is a 540px square stage (captured at 2x) with a scripted pointer. `?film=1&t=8400` is the payoff frame.
 
 ## Preview
 
