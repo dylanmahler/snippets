@@ -8,7 +8,7 @@ Two nested sheets. Matched corners copy the outer radius onto the inner one, so 
 inner = max(0, outer - padding - border)
 ```
 
-This specimen fixes padding at 10px and the border at 1px, so a 36px outer corner resolves to 25px. The border is a real 1px line because it is part of the formula. A radius never exceeds half the shorter side, and it stops at 0 when the gap is larger than the outer corner.
+This specimen fixes padding at 24px and the border at 1px. A matched 48px corner copies 48 onto the inner sheet, so the gap thickens at the corner. Concentric resolves it to 23px. The border is a real 1px line because it is part of the formula. A radius never exceeds half the shorter side, and it stops at 0 when the gap is larger than the outer corner.
 
 Drag the bottom-right grip. It tracks the pointer 1:1. Switching to concentric eases the inner corner in 220ms. Keyboard changes are immediate. `prefers-reduced-motion` keeps the drag and drops the settle.
 

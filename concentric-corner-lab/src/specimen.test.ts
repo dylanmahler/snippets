@@ -4,22 +4,24 @@ import { SPECIMEN, equationLabel, sheetRadii } from "./specimen.ts"
 
 describe("sheet radii", () => {
   it("matches both corners to the outer radius", () => {
-    const radii = sheetRadii(36, 0)
-    assert.equal(radii.card, 36)
-    assert.equal(radii.inner, 36)
-    assert.equal(equationLabel(36, 0), "36 / 36")
+    const radii = sheetRadii(48, 0)
+    assert.equal(radii.card, 48)
+    assert.equal(radii.inner, 48)
+    assert.equal(equationLabel(48, 0), "48 / 48")
   })
 
   it("sets the inner radius to outer − padding − border", () => {
-    const radii = sheetRadii(36, 1)
-    assert.equal(radii.formula, 25)
-    assert.equal(radii.inner, 25)
-    assert.equal(equationLabel(36, 1), "36 − 10 − 1 = 25")
+    const radii = sheetRadii(48, 1)
+    assert.equal(radii.formula, 23)
+    assert.equal(radii.inner, 23)
+    assert.equal(equationLabel(48, 1), "48 − 24 − 1 = 23")
   })
 
-  it("keeps the gap while the outer radius changes", () => {
-    assert.equal(sheetRadii(48, 1).inner, 37)
-    assert.equal(sheetRadii(28, 1).inner, 17)
+  it("keeps a 25px gap while the outer radius changes", () => {
+    assert.equal(sheetRadii(64, 1).inner, 39)
+    assert.equal(sheetRadii(36, 1).inner, 11)
+    assert.equal(sheetRadii(64, 1).card - sheetRadii(64, 1).inner, 25)
+    assert.equal(sheetRadii(36, 1).card - sheetRadii(36, 1).inner, 25)
   })
 
   it("clamps a vanished corner to 0 and a too-round inner corner to a pill", () => {

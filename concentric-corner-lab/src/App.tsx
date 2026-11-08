@@ -1,8 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react"
 import { flushSync } from "react-dom"
 import { cornerArc, cornerCenters } from "./radius.ts"
 import { filmAt, type CursorKind } from "./film-timeline.ts"
 import { SPECIMEN, equationLabel, radiusLimit, sheetRadii } from "./specimen.ts"
+
+const ARC = 1 - Math.SQRT1_2
 
 declare global {
   interface Window {
@@ -34,7 +36,7 @@ function useReducedMotion() {
 function readLive() {
   const params = new URLSearchParams(window.location.search)
   const radius = params.get("radius")
-  const outer = radius !== null && Number.isFinite(Number(radius)) ? Number(radius) : 36
+  const outer = radius !== null && Number.isFinite(Number(radius)) ? Number(radius) : 48
   const mode: Mode = params.get("mode") === "concentric" ? "concentric" : "matched"
   return { outer, mode }
 }
@@ -47,9 +49,6 @@ function paint(root: HTMLElement, visual: Visual) {
   root.dataset.mode = visual.concentric >= 0.5 ? "concentric" : "matched"
   root.dataset.outer = radii.card.toFixed(2)
   root.dataset.inner = radii.inner.toFixed(2)
-
-  const equation = root.querySelector(".equation")
-  if (equation) equation.textContent = equationLabel(visual.outer, visual.concentric)
 
   const guides = root.querySelector<SVGSVGElement>(".guides")
   if (guides) {
@@ -72,42 +71,64 @@ function paint(root: HTMLElement, visual: Visual) {
     grip.setAttribute("aria-valuetext", `${Math.round(radii.card)} pixels`)
   }
 
-  const line = root.querySelector<SVGLineElement>(".leader line")
+  const specimen = root.querySelector(".specimen")
   const label = root.querySelector<HTMLElement>(".equation")
-  if (line && label) {
+  const line = root.querySelector<SVGLineElement>(".leader line")
+  if (specimen && label && line) {
     const origin = root.getBoundingClientRect()
-    const labelBox = label.getBoundingClientRect()
-    const gripX = SPECIMEN.width - radii.card
-    const along = Math.min(18, Math.max(8, radii.card * 0.45))
-    const rise = Math.sqrt(Math.max(0, radii.card * radii.card - along * along))
-    const x1 = gripX + along
-    const y1 = SPECIMEN.height - radii.card + rise
-    const x2 = labelBox.left - origin.left + Math.min(16, labelBox.width / 2)
-    const y2 = labelBox.top - origin.top + 1
-    line.setAttribute("x1", x1.toFixed(1))
-    line.setAttribute("y1", y1.toFixed(1))
-    line.setAttribute("x2", x2.toFixed(1))
-    line.setAttribute("y2", y2.toFixed(1))
+    const box = specimen.getBoundingClientRect()
+    const inset = SPECIMEN.padding + SPECIMEN.border
+    const right = SPECIMEN.width - inset
+    const bottom = SPECIMEN.height - inset
+    const radius = radii.inner
+    const scaleX = box.width / SPECIMEN.width
+    const scaleY = box.height / SPECIMEN.height
+    const x = box.left - origin.left + (right - radius + radius * Math.SQRT1_2) * scaleX
+    const y = box.top - origin.top + (bottom - radius + radius * Math.SQRT1_2) * scaleY
+    const outside = box.right - origin.left + 12
+    label.textContent = equationLabel(visual.outer, visual.concentric)
+    label.style.left = `${outside}px`
+    label.style.top = `${y - 9}px`
+    line.setAttribute("x1", x.toFixed(1))
+    line.setAttribute("y1", y.toFixed(1))
+    line.setAttribute("x2", (outside - 4).toFixed(1))
+    line.setAttribute("y2", y.toFixed(1))
+  }
+
+  const segment = root.querySelector<HTMLElement>(".segment")
+  const thumb = root.querySelector<HTMLElement>(".thumb")
+  const matched = root.querySelector<HTMLElement>("[data-mode='matched']")
+  const concentric = root.querySelector<HTMLElement>("[data-mode='concentric']")
+  if (segment && thumb && matched && concentric) {
+    const amount = Math.min(1, Math.max(0, visual.concentric))
+    const left = matched.offsetLeft + (concentric.offsetLeft - matched.offsetLeft) * amount
+    const width = matched.offsetWidth + (concentric.offsetWidth - matched.offsetWidth) * amount
+    thumb.style.width = `${width}px`
+    thumb.style.transform = `translate3d(${left}px, 0, 0)`
   }
 }
 
 function Study({
   mode,
+  className,
   rootRef,
   onGripDown,
   onGripKey,
   onMode,
   instantMode,
+  children,
 }: {
   mode: Mode
+  className: string
   rootRef?: RefObject<HTMLDivElement | null>
   onGripDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onGripKey?: (event: ReactKeyboardEvent<HTMLButtonElement>) => void
   onMode?: (mode: Mode, instant: boolean) => void
   instantMode?: boolean
+  children?: ReactNode
 }) {
   return (
-    <div className="study" ref={rootRef}>
+    <div className={className} ref={rootRef}>
       <div className="specimen">
         <div className="outer">
           <div className="inner" />
@@ -124,42 +145,43 @@ function Study({
           aria-label="Outer radius"
           aria-valuemin={0}
           aria-valuemax={MAX}
-          aria-valuenow={36}
+          aria-valuenow={48}
           onPointerDown={onGripDown}
           onKeyDown={onGripKey}
         />
-      </div>
-      <div className="row">
-        <div className="segment" role="radiogroup" aria-label="Corner relationship">
-          <button
-            type="button"
-            role="radio"
-            data-mode="matched"
-            aria-checked={mode === "matched"}
-            tabIndex={mode === "matched" ? 0 : -1}
-            onClick={() => onMode?.("matched", false)}
-            onKeyDown={(event) => onSegmentKey(event, onMode, instantMode)}
-          >
-            Matched
-          </button>
-          <button
-            type="button"
-            role="radio"
-            data-mode="concentric"
-            data-spot="concentric"
-            aria-checked={mode === "concentric"}
-            tabIndex={mode === "concentric" ? 0 : -1}
-            onClick={() => onMode?.("concentric", false)}
-            onKeyDown={(event) => onSegmentKey(event, onMode, instantMode)}
-          >
-            Concentric
-          </button>
-        </div>
-        <p className="equation" />
+        <span className="spot-park" data-spot="park" />
       </div>
       <svg className="leader" aria-hidden="true">
         <line />
       </svg>
+      <p className="equation" />
+      <div className="segment" role="radiogroup" aria-label="Corner relationship">
+        <span className="thumb" aria-hidden="true" />
+        <button
+          type="button"
+          role="radio"
+          data-mode="matched"
+          aria-checked={mode === "matched"}
+          tabIndex={mode === "matched" ? 0 : -1}
+          onClick={() => onMode?.("matched", false)}
+          onKeyDown={(event) => onSegmentKey(event, onMode, instantMode)}
+        >
+          Matched
+        </button>
+        <button
+          type="button"
+          role="radio"
+          data-mode="concentric"
+          data-spot="concentric"
+          aria-checked={mode === "concentric"}
+          tabIndex={mode === "concentric" ? 0 : -1}
+          onClick={() => onMode?.("concentric", false)}
+          onKeyDown={(event) => onSegmentKey(event, onMode, instantMode)}
+        >
+          Concentric
+        </button>
+      </div>
+      {children}
     </div>
   )
 }
@@ -190,7 +212,7 @@ export function App() {
     concentric: initial.mode === "concentric" ? 1 : 0,
     guides: 0,
   })
-  const drag = useRef<{ pointerId: number; x: number; origin: number; latest: number; raf: number } | null>(null)
+  const drag = useRef<{ pointerId: number; x: number; y: number; origin: number; latest: number; raf: number } | null>(null)
 
   const apply = (next: Partial<Visual>, instant = false) => {
     visual.current = { ...visual.current, ...next }
@@ -241,24 +263,25 @@ export function App() {
     node.setPointerCapture(event.pointerId)
     const current = parseFloat(getComputedStyle(root.querySelector(".outer") as Element).borderTopLeftRadius)
     const origin = Number.isFinite(current) ? current : visual.current.outer
-    drag.current = { pointerId: event.pointerId, x: event.clientX, origin, latest: origin, raf: 0 }
+    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, origin, latest: origin, raf: 0 }
     root.dataset.dragging = "true"
     visual.current.outer = origin
-    visual.current.guides = 1
-    setGuides(1)
+    visual.current.guides = visual.current.concentric >= 0.5 ? 0.4 : 0
+    setGuides(visual.current.guides)
     paint(root, visual.current)
 
     const move = (pointer: PointerEvent) => {
       const session = drag.current
       if (!session || pointer.pointerId !== session.pointerId) return
-      session.latest = Math.min(MAX, Math.max(0, session.origin - (pointer.clientX - session.x)))
+      const along = pointer.clientX - session.x + (pointer.clientY - session.y)
+      session.latest = Math.min(MAX, Math.max(0, session.origin - along / (2 * ARC)))
       if (session.raf) return
       session.raf = requestAnimationFrame(() => {
         const active = drag.current
         if (!active) return
         active.raf = 0
         visual.current.outer = active.latest
-        visual.current.guides = 1
+        visual.current.guides = visual.current.concentric >= 0.5 ? 0.4 : 0
         if (rootRef.current) paint(rootRef.current, visual.current)
       })
     }
@@ -284,9 +307,9 @@ export function App() {
 
   const onGripKey = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const delta =
-      event.key === "ArrowRight" || event.key === "ArrowUp"
+      event.key === "ArrowLeft" || event.key === "ArrowUp"
         ? 1
-        : event.key === "ArrowLeft" || event.key === "ArrowDown"
+        : event.key === "ArrowRight" || event.key === "ArrowDown"
           ? -1
           : event.key === "Home"
             ? -MAX
@@ -305,15 +328,26 @@ export function App() {
   const onMode = (next: Mode, instant: boolean) => {
     if (instant || reduced) rootRef.current?.setAttribute("data-instant", "true")
     setMode(next)
-    setGuides(next === "matched" ? 1 : 1)
-    window.setTimeout(() => setGuides(0), reduced || instant ? 0 : 220)
+    if (next === "concentric" && !instant && !reduced) {
+      setGuides(0.4)
+      window.setTimeout(() => setGuides(0), 340)
+    } else {
+      setGuides(0)
+    }
   }
 
   return (
-    <div className="page" data-reduced={reduced}>
+    <Study
+      className="page stage"
+      mode={mode}
+      rootRef={rootRef}
+      onGripDown={onGripDown}
+      onGripKey={onGripKey}
+      onMode={onMode}
+      instantMode
+    >
       <h1 className="sr">Concentric corner lab</h1>
-      <Study mode={mode} rootRef={rootRef} onGripDown={onGripDown} onGripKey={onGripKey} onMode={onMode} instantMode />
-    </div>
+    </Study>
   )
 }
 
@@ -343,16 +377,14 @@ function ResizeCursor() {
 export function Film({ time }: { time: number }) {
   const frame = filmAt(time)
   const stageRef = useRef<HTMLDivElement>(null)
-  const studyRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
-    const study = studyRef.current
     const stage = stageRef.current
     const cursor = cursorRef.current
-    if (!study || !stage || !cursor) return
-    paint(study, { outer: frame.outer, concentric: frame.concentric, guides: frame.guides })
-    const pressed = study.querySelector<HTMLButtonElement>("[data-spot='concentric']")
+    if (!stage || !cursor) return
+    paint(stage, { outer: frame.outer, concentric: frame.concentric, guides: frame.guides })
+    const pressed = stage.querySelector<HTMLButtonElement>("[data-spot='concentric']")
     if (pressed) pressed.dataset.pressed = String(frame.pressed && frame.to === "concentric")
 
     const origin = stage.getBoundingClientRect()
@@ -373,13 +405,11 @@ export function Film({ time }: { time: number }) {
   })
 
   return (
-    <div className="film" ref={stageRef} data-pressed={frame.pressed ? frame.to : "none"}>
-      <Study mode={frame.concentric >= 0.5 ? "concentric" : "matched"} rootRef={studyRef} />
-      <span className="spot-park" data-spot="park" />
-      <div className="film-cursor" ref={cursorRef} data-kind={frame.cursor as CursorKind} aria-hidden="true">
+    <Study className="film stage" mode={frame.concentric >= 0.5 ? "concentric" : "matched"} rootRef={stageRef}>
+      <div className="film-cursor" ref={cursorRef} data-kind={frame.cursor as CursorKind} aria-hidden="true" data-pressed={frame.pressed ? frame.to : "none"}>
         {frame.cursor === "arrow" ? <ArrowCursor /> : <ResizeCursor />}
       </div>
-    </div>
+    </Study>
   )
 }
 

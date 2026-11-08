@@ -3,11 +3,11 @@ import { lerp } from "./radius.ts"
 export const FILM_MS = 12000
 
 export type Spot = "park" | "grip" | "concentric"
-export type CursorKind = "arrow" | "ew"
+export type CursorKind = "arrow" | "nw"
 
 export type FilmFrame = {
   outer: number
-  padding: 10
+  padding: 24
   border: 1
   concentric: number
   guides: number
@@ -62,7 +62,7 @@ export function easeOut(amount: number) {
 
 function frame(partial: Partial<FilmFrame> & Pick<FilmFrame, "outer" | "concentric" | "from">): FilmFrame {
   return {
-    padding: 10,
+    padding: 24,
     border: 1,
     guides: 0,
     to: partial.from,
@@ -77,85 +77,78 @@ export function filmAt(time: number): FilmFrame {
   const t = Math.min(FILM_MS, Math.max(0, time))
 
   if (t < 1500) {
-    return frame({ outer: 36, concentric: 0, from: "park" })
+    return frame({ outer: 48, concentric: 0, from: "park" })
   }
   if (t < 1750) {
     return frame({
-      outer: 36,
+      outer: 48,
       concentric: 0,
       from: "park",
       to: "grip",
       travel: easeTravel(span(t, 1500, 1750)),
-      cursor: "ew",
+      cursor: "nw",
     })
   }
-  if (t < 3200) {
+  if (t < 3400) {
     return frame({
-      outer: lerp(36, 48, easeTravel(span(t, 1750, 3200))),
+      outer: lerp(48, 64, easeTravel(span(t, 1750, 3400))),
       concentric: 0,
-      guides: t < 1870 ? span(t, 1750, 1870) : 1,
       from: "grip",
       pressed: true,
-      cursor: "ew",
+      cursor: "nw",
     })
   }
-  if (t < 3480) {
+  if (t < 3680) {
     return frame({
-      outer: 48,
+      outer: 64,
       concentric: 0,
-      guides: 1,
       from: "grip",
       to: "concentric",
-      travel: easeTravel(span(t, 3200, 3480)),
+      travel: easeTravel(span(t, 3400, 3680)),
     })
   }
-  if (t < 3640) {
-    return frame({
-      outer: 48,
-      concentric: 0,
-      guides: 1,
-      from: "concentric",
-      pressed: true,
-    })
+  if (t < 3840) {
+    return frame({ outer: 64, concentric: 0, from: "concentric", pressed: true })
   }
   if (t < 5000) {
+    const concentric = easeOut(span(t, 3840, 4060))
     return frame({
-      outer: 48,
-      concentric: easeOut(span(t, 3640, 3860)),
-      guides: 1,
+      outer: 64,
+      concentric,
+      guides: concentric * 0.4,
       from: "concentric",
     })
   }
   if (t < 5250) {
     return frame({
-      outer: 48,
+      outer: 64,
       concentric: 1,
-      guides: 1,
+      guides: 0.4,
       from: "concentric",
       to: "grip",
       travel: easeTravel(span(t, 5000, 5250)),
-      cursor: "ew",
+      cursor: "nw",
     })
   }
   if (t < 7000) {
     return frame({
-      outer: lerp(48, 28, easeTravel(span(t, 5250, 7000))),
+      outer: lerp(64, 36, easeTravel(span(t, 5250, 7000))),
       concentric: 1,
-      guides: 1,
+      guides: 0.4,
       from: "grip",
       pressed: true,
-      cursor: "ew",
+      cursor: "nw",
     })
   }
   if (t < 10000) {
     return frame({
-      outer: 28,
+      outer: 36,
       concentric: 1,
-      guides: 1 - span(t, 7000, 7120),
+      guides: 0.4 * (1 - span(t, 7000, 7120)),
       from: "grip",
       to: "park",
-      travel: easeTravel(span(t, 7000, 7360)),
+      travel: easeTravel(span(t, 7000, 7400)),
     })
   }
-  return frame({ outer: 28, concentric: 1, guides: 0, from: "park" })
+  return frame({ outer: 36, concentric: 1, guides: 0, from: "park" })
 }

@@ -59,11 +59,11 @@ for (let i = 0; i < frames; i += 1) {
 
 await film.close()
 
-const live = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+const live = await browser.newPage({ viewport: { width: 390, height: 640 }, deviceScaleFactor: 2 })
 await live.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" })
 await live.evaluate(() => document.fonts.ready)
 await live.screenshot({ path: path.join(outDir, "opening-390.png"), type: "png" })
-await live.goto(`http://127.0.0.1:${port}/?mode=concentric&radius=28`, { waitUntil: "networkidle" })
+await live.goto(`http://127.0.0.1:${port}/?mode=concentric&radius=36`, { waitUntil: "networkidle" })
 await live.screenshot({ path: path.join(outDir, "payoff-390.png"), type: "png" })
 
 const reduced = await browser.newPage({
@@ -79,7 +79,6 @@ await live.close()
 await browser.close()
 preview.kill("SIGTERM")
 preview.unref()
-setTimeout(() => process.exit(0), 200)
 
 const master = path.join(outDir, "corner-lab-master-1080-60.mp4")
 const web = path.join(outDir, "corner-lab-x-web-720-30.mp4")
@@ -138,6 +137,7 @@ await run("ffprobe", [
   "json",
   master,
 ])
+setTimeout(() => process.exit(0), 200)
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {

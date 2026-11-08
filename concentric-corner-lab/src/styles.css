@@ -1,18 +1,18 @@
 :root {
   --canvas: #fcfcfc;
   --face: #ffffff;
-  --inner: #f6f6f6;
+  --inner: #f3f3f3;
+  --track: #f2f2f2;
   --ink: #202020;
   --secondary: #6f6f6f;
   --annotation: #2468da;
-  --border: rgb(0 0 0 / 0.14);
-  --ambient: 0 2px 4px rgb(0 0 0 / 0.04);
+  --border: rgb(0 0 0 / 0.1);
   --edge: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.04);
   --edge-hover: 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08), 0 2px 4px rgb(0 0 0 / 0.06);
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
   --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --r-outer: 36;
-  --r-inner: 36;
+  --r-outer: 48;
+  --r-inner: 48;
   --guides: 0;
   color: var(--ink);
   background: var(--canvas);
@@ -63,33 +63,39 @@ button {
   border: 0;
 }
 
-.page {
-  min-height: 100dvh;
-  display: grid;
-  justify-items: center;
-  align-items: start;
-  padding: 32px 16px 48px;
+.stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas);
 }
 
-.study {
-  position: relative;
-  width: 344px;
+.page {
+  width: 100%;
+  height: 100dvh;
 }
 
 .specimen {
-  position: relative;
-  width: 344px;
-  height: 252px;
+  position: absolute;
+  width: 720px;
+  height: 560px;
+}
+
+.page .specimen {
+  left: -470px;
+  top: -100px;
+}
+
+.page .segment {
+  top: 540px;
 }
 
 .outer {
   width: 100%;
   height: 100%;
-  padding: 10px;
+  padding: 24px;
   background: var(--face);
   border: 1px solid var(--border);
   border-radius: calc(var(--r-outer) * 1px);
-  box-shadow: var(--ambient);
   transition: border-radius 220ms var(--ease);
 }
 
@@ -97,7 +103,7 @@ button {
   width: 100%;
   height: 100%;
   background: var(--inner);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: calc(var(--r-inner) * 1px);
   transition: border-radius 220ms var(--ease);
 }
@@ -141,9 +147,10 @@ button {
 .leader line {
   stroke: var(--secondary);
   stroke-width: 1;
+  stroke-linecap: round;
 }
 
-.study[data-mode="matched"] .leader line {
+.stage[data-mode="matched"] .leader line {
   stroke: var(--annotation);
 }
 
@@ -152,11 +159,11 @@ button {
   z-index: 2;
   width: 44px;
   height: 44px;
-  left: calc(100% - var(--r-outer) * 1px);
-  top: 100%;
+  left: calc(100% - var(--r-outer) * 0.292893px);
+  top: calc(100% - var(--r-outer) * 0.292893px);
   transform: translate(-50%, -50%);
   touch-action: none;
-  cursor: ew-resize;
+  cursor: nwse-resize;
 }
 
 .grip::before {
@@ -168,7 +175,8 @@ button {
   height: 6px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: var(--ink);
+  background: #fff;
+  box-shadow: var(--edge);
 }
 
 .grip:focus {
@@ -183,29 +191,35 @@ button {
   transform: translate(-50%, -50%) scale(0.92);
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 20px;
-}
-
 .segment {
-  position: relative;
+  position: absolute;
+  z-index: 3;
+  left: 16px;
+  top: 500px;
   display: flex;
   align-items: center;
   height: 36px;
   padding: 4px;
-  gap: 2px;
   border: 0;
   border-radius: 18px;
-  background: var(--face);
+  background: var(--track);
+}
+
+.thumb {
+  position: absolute;
+  z-index: 0;
+  top: 4px;
+  left: 0;
+  height: 28px;
+  border-radius: 14px;
+  background: #fff;
   box-shadow: var(--edge);
+  transition: transform 220ms var(--ease), width 220ms var(--ease);
 }
 
 .segment button {
   position: relative;
+  z-index: 1;
   height: 28px;
   padding: 0 12px;
   border-radius: 14px;
@@ -216,6 +230,7 @@ button {
   color: var(--secondary);
   white-space: nowrap;
   cursor: pointer;
+  background: transparent;
 }
 
 .segment button::before {
@@ -229,7 +244,6 @@ button {
 }
 
 .segment button[aria-checked="true"] {
-  background: var(--inner);
   color: var(--ink);
 }
 
@@ -244,11 +258,12 @@ button {
 
 .segment button:active,
 .segment button[data-pressed="true"] {
-  background: #efefef;
   transform: scale(0.98);
 }
 
 .equation {
+  position: absolute;
+  z-index: 3;
   margin: 0;
   font-size: 13px;
   line-height: 18px;
@@ -257,9 +272,10 @@ button {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--ink);
+  pointer-events: none;
 }
 
-.study[data-mode="matched"] .equation {
+.stage[data-mode="matched"] .equation {
   color: var(--annotation);
 }
 
@@ -273,10 +289,14 @@ button {
   cursor: none;
 }
 
-.film .study {
-  position: absolute;
-  left: 98px;
-  top: 120px;
+.film .specimen {
+  left: -320px;
+  top: -130px;
+}
+
+.film .segment {
+  left: 20px;
+  top: 488px;
 }
 
 .film-cursor {
@@ -294,23 +314,33 @@ button {
   margin-top: -2px;
 }
 
-.film-cursor[data-kind="ew"] {
+.film-cursor[data-kind="nw"] {
   margin-left: -11px;
   margin-top: -11px;
 }
 
+.film-cursor[data-kind="nw"] svg {
+  transform: rotate(-45deg);
+}
+
 .spot-park {
   position: absolute;
-  left: 470px;
-  top: 300px;
+  left: calc(100% - var(--r-outer) * 0.292893px - 36px);
+  top: calc(100% - var(--r-outer) * 0.292893px + 32px);
   width: 4px;
   height: 4px;
+  pointer-events: none;
+}
+
+.stage[data-instant="true"] .thumb,
+.stage[data-dragging="true"] .thumb,
+.film .thumb {
+  transition: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .segment:hover {
+  .segment:hover .thumb {
     box-shadow: var(--edge-hover);
-    transition: box-shadow 120ms ease;
   }
 
   .segment button:hover {
@@ -322,7 +352,7 @@ button {
   .outer,
   .inner,
   .guides,
-  .segment {
+  .thumb {
     transition: none;
   }
 }
