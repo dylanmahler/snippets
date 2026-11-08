@@ -34,3 +34,7 @@ npm run dev
 ```
 
 Open the printed local URL. `npm run build` typechecks and writes `dist/`.
+
+## Preview
+
+Branch previews are the Vercel deployment for this pull request. The URL is posted on the PR when the build finishes.
