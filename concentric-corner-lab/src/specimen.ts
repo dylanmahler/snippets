@@ -3,7 +3,7 @@ import { lerp, usedRadius } from "./radius.ts"
 export const SPECIMEN = {
   width: 720,
   height: 560,
-  padding: 24,
+  padding: 12,
   border: 1,
 } as const
 

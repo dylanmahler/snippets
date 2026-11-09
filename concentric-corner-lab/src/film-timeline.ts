@@ -7,7 +7,7 @@ export type CursorKind = "arrow" | "nw"
 
 export type FilmFrame = {
   outer: number
-  padding: 24
+  padding: 12
   border: 1
   concentric: number
   guides: number
@@ -62,7 +62,7 @@ export function easeOut(amount: number) {
 
 function frame(partial: Partial<FilmFrame> & Pick<FilmFrame, "outer" | "concentric" | "from">): FilmFrame {
   return {
-    padding: 24,
+    padding: 12,
     border: 1,
     guides: 0,
     to: partial.from,
@@ -132,7 +132,7 @@ export function filmAt(time: number): FilmFrame {
   }
   if (t < 7000) {
     return frame({
-      outer: lerp(64, 36, easeTravel(span(t, 5250, 7000))),
+      outer: lerp(64, 48, easeTravel(span(t, 5250, 7000))),
       concentric: 1,
       guides: 0.4,
       from: "grip",
@@ -142,7 +142,7 @@ export function filmAt(time: number): FilmFrame {
   }
   if (t < 10000) {
     return frame({
-      outer: 36,
+      outer: 48,
       concentric: 1,
       guides: 0.4 * (1 - span(t, 7000, 7120)),
       from: "grip",
@@ -150,5 +150,5 @@ export function filmAt(time: number): FilmFrame {
       travel: easeTravel(span(t, 7000, 7400)),
     })
   }
-  return frame({ outer: 36, concentric: 1, guides: 0, from: "park" })
+  return frame({ outer: 48, concentric: 1, guides: 0, from: "park" })
 }

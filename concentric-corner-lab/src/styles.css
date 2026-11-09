@@ -31,9 +31,12 @@
 }
 
 html,
-body {
+body,
+#root {
   margin: 0;
   min-height: 100%;
+  min-height: 100svh;
+  min-height: 100dvh;
   background: var(--canvas);
   overflow-x: clip;
 }
@@ -63,36 +66,33 @@ button {
   border: 0;
 }
 
-.stage {
-  position: relative;
-  overflow: hidden;
-  background: var(--canvas);
+.page {
+  min-height: 100svh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 12px;
 }
 
-.page {
-  width: 100%;
-  height: 100dvh;
+.stage {
+  position: relative;
+  width: min(92vw, 92svh, 640px);
+  height: min(92vw, 92svh, 640px);
+  background: var(--canvas);
 }
 
 .specimen {
   position: absolute;
-  width: 720px;
-  height: 560px;
-}
-
-.page .specimen {
-  left: -470px;
-  top: -100px;
-}
-
-.page .segment {
-  top: 540px;
+  left: 16px;
+  right: 156px;
+  top: 16px;
+  bottom: 76px;
 }
 
 .outer {
   width: 100%;
   height: 100%;
-  padding: 24px;
+  padding: 12px;
   background: var(--face);
   border: 1px solid var(--border);
   border-radius: calc(var(--r-outer) * 1px);
@@ -108,10 +108,10 @@ button {
   transition: border-radius 220ms var(--ease);
 }
 
-.study[data-dragging="true"] .outer,
-.study[data-dragging="true"] .inner,
-.study[data-instant="true"] .outer,
-.study[data-instant="true"] .inner,
+.stage[data-dragging="true"] .outer,
+.stage[data-dragging="true"] .inner,
+.stage[data-instant="true"] .outer,
+.stage[data-instant="true"] .inner,
 .film .outer,
 .film .inner {
   transition: none;
@@ -132,7 +132,7 @@ button {
   transition: opacity 120ms linear;
 }
 
-.study[data-instant="true"] .guides,
+.stage[data-instant="true"] .guides,
 .film .guides {
   transition: none;
 }
@@ -145,13 +145,9 @@ button {
 }
 
 .leader line {
-  stroke: var(--secondary);
+  stroke: rgb(32 32 32 / 0.45);
   stroke-width: 1;
   stroke-linecap: round;
-}
-
-.stage[data-mode="matched"] .leader line {
-  stroke: var(--annotation);
 }
 
 .grip {
@@ -175,8 +171,8 @@ button {
   height: 6px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: #fff;
-  box-shadow: var(--edge);
+  background: var(--ink);
+  box-shadow: 0 0 0 1.5px #fff, var(--edge);
 }
 
 .grip:focus {
@@ -195,7 +191,7 @@ button {
   position: absolute;
   z-index: 3;
   left: 16px;
-  top: 500px;
+  bottom: 16px;
   display: flex;
   align-items: center;
   height: 36px;
@@ -271,12 +267,17 @@ button {
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--ink);
+  color: rgb(32 32 32 / 0.86);
+  -webkit-text-fill-color: rgb(32 32 32 / 0.86);
+  text-decoration: none;
   pointer-events: none;
 }
 
-.stage[data-mode="matched"] .equation {
-  color: var(--annotation);
+.equation a,
+.equation a:any-link {
+  color: inherit;
+  -webkit-text-fill-color: inherit;
+  text-decoration: none;
 }
 
 .film {
@@ -289,14 +290,9 @@ button {
   cursor: none;
 }
 
-.film .specimen {
-  left: -320px;
-  top: -130px;
-}
-
-.film .segment {
-  left: 20px;
-  top: 488px;
+.film.stage {
+  width: 540px;
+  height: 540px;
 }
 
 .film-cursor {

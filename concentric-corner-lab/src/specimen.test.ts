@@ -12,16 +12,16 @@ describe("sheet radii", () => {
 
   it("sets the inner radius to outer − padding − border", () => {
     const radii = sheetRadii(48, 1)
-    assert.equal(radii.formula, 23)
-    assert.equal(radii.inner, 23)
-    assert.equal(equationLabel(48, 1), "48 − 24 − 1 = 23")
+    assert.equal(radii.formula, 35)
+    assert.equal(radii.inner, 35)
+    assert.equal(equationLabel(48, 1), "48 − 12 − 1 = 35")
   })
 
-  it("keeps a 25px gap while the outer radius changes", () => {
-    assert.equal(sheetRadii(64, 1).inner, 39)
-    assert.equal(sheetRadii(36, 1).inner, 11)
-    assert.equal(sheetRadii(64, 1).card - sheetRadii(64, 1).inner, 25)
-    assert.equal(sheetRadii(36, 1).card - sheetRadii(36, 1).inner, 25)
+  it("keeps a 13px gap while the outer radius changes", () => {
+    assert.equal(sheetRadii(64, 1).inner, 51)
+    assert.equal(sheetRadii(48, 1).inner, 35)
+    assert.equal(sheetRadii(64, 1).card - sheetRadii(64, 1).inner, 13)
+    assert.equal(sheetRadii(48, 1).card - sheetRadii(48, 1).inner, 13)
   })
 
   it("clamps a vanished corner to 0 and a too-round inner corner to a pill", () => {

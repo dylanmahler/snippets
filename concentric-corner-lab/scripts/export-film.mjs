@@ -63,7 +63,7 @@ const live = await browser.newPage({ viewport: { width: 390, height: 640 }, devi
 await live.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" })
 await live.evaluate(() => document.fonts.ready)
 await live.screenshot({ path: path.join(outDir, "opening-390.png"), type: "png" })
-await live.goto(`http://127.0.0.1:${port}/?mode=concentric&radius=36`, { waitUntil: "networkidle" })
+await live.goto(`http://127.0.0.1:${port}/?mode=concentric&radius=48`, { waitUntil: "networkidle" })
 await live.screenshot({ path: path.join(outDir, "payoff-390.png"), type: "png" })
 
 const reduced = await browser.newPage({
